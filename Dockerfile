@@ -3,7 +3,6 @@
 #
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
-
 FROM debian:buster-slim
 
 # prevent Debian's PHP packages from being installed
@@ -211,7 +210,7 @@ COPY docker-php-ext-* docker-php-entrypoint /usr/local/bin/
 RUN docker-php-ext-enable sodium
 
 ENTRYPOINT ["docker-php-entrypoint"]
-WORKDIR /var/www/html
+WORKDIR /main/public
 
 RUN set -eux; \
 	cd /usr/local/etc; \
@@ -253,17 +252,16 @@ RUN set -eux; \
 
 # Override stop signal to stop process gracefully
 # https://github.com/php/php-src/blob/17baa87faddc2550def3ae7314236826bc1b1398/sapi/fpm/php-fpm.8.in#L163
-WORKDIR /
+
 
 RUN apt update && apt upgrade -y && apt install -y lsb-release ca-certificates apt-transport-https software-properties-common \
     &&  apt install -y wget curl cron git unzip gnupg2
-COPY config/nginx/sources.list /etc/apt/sources.list
-COPY config/nginx/no-debian-php /etc/apt/preferences.d/no-debian-php
-COPY config/nginx/sury-php.list /etc/apt/sources.list.d/sury-php.list
+
 RUN wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add -
+RUN sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
 RUN apt update
-
-
+RUN apt -y full-upgrade && apt -y autoremove
+WORKDIR /
 STOPSIGNAL SIGQUIT
 
 EXPOSE 9000
