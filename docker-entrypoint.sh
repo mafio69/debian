@@ -3,6 +3,6 @@
 # Brief description of your script
 # Copyright 2021 mariusz
 
-nginx -g "daemon off;"
-
+# nginx -g "daemon off;" > /dev/stdout
+php-fpm
 "$@"

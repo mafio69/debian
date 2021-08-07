@@ -259,14 +259,14 @@ RUN apt update && apt upgrade -y && apt install -y lsb-release ca-certificates a
     &&  apt install -y wget curl cron git unzip gnupg2 && apt install -y nginx
 
 RUN apt -y full-upgrade && apt -y autoremove && ln -s /var/log/nginx/ `2>&1 nginx -V | grep -oP "(?<=--prefix=)\S+"`/logs
-
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY enabled.conf /etc/nginx/conf.d/enabled.conf
 WORKDIR /
 STOPSIGNAL SIGQUIT
 COPY docker-entrypoint.sh /
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY config/nginx/enabled.conf /etc/nginx/conf.d/enabled.conf
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
 EXPOSE 9000 8080
-CMD ["php-fpm"]
-#CMD ["nginx", "-g", "daemon off;"]
+
+# CMD ["php-fpm"]
+CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
