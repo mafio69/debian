@@ -3,7 +3,6 @@
 #
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
-
 FROM debian:buster-slim
 
 # prevent Debian's PHP packages from being installed
@@ -43,10 +42,10 @@ ENV PHP_INI_DIR /usr/local/etc/php
 RUN set -eux; \
 	mkdir -p "$PHP_INI_DIR/conf.d"; \
 # allow running as an arbitrary user (https://github.com/docker-library/php/issues/743)
-	[ ! -d /var/www/html ]; \
-	mkdir -p /var/www/html; \
-	chown www-data:www-data /var/www/html; \
-	chmod 777 /var/www/html
+	[ ! -d /main/public ]; \
+	mkdir -p /main/public; \
+	chown www-data:www-data main/public; \
+	chmod 777 /main/public
 
 ENV PHP_EXTRA_CONFIGURE_ARGS --enable-fpm --with-fpm-user=www-data --with-fpm-group=www-data --disable-cgi
 
@@ -62,9 +61,9 @@ ENV PHP_LDFLAGS="-Wl,-O1 -pie"
 
 ENV GPG_KEYS 1729F83938DA44E27BA0F4D3DBDB397470D12172 BFDDD28642824F8118EF77909B67A5C12229118F
 
-ENV PHP_VERSION 8.0.9
-ENV PHP_URL="https://www.php.net/distributions/php-8.0.9.tar.xz" PHP_ASC_URL="https://www.php.net/distributions/php-8.0.9.tar.xz.asc"
-ENV PHP_SHA256="71a01b2b56544e20e28696ad5b366e431a0984eaa39aa5e35426a4843e172010"
+ENV PHP_VERSION 8.0.8
+ENV PHP_URL="https://www.php.net/distributions/php-8.0.8.tar.xz" PHP_ASC_URL="https://www.php.net/distributions/php-8.0.8.tar.xz.asc"
+ENV PHP_SHA256="dc1668d324232dec1d05175ec752dade92d29bb3004275118bc3f7fc7cbfbb1c"
 
 RUN set -eux; \
 	\
@@ -211,7 +210,7 @@ COPY docker-php-ext-* docker-php-entrypoint /usr/local/bin/
 RUN docker-php-ext-enable sodium
 
 ENTRYPOINT ["docker-php-entrypoint"]
-WORKDIR /var/www/html
+WORKDIR /main/public
 
 RUN set -eux; \
 	cd /usr/local/etc; \
@@ -256,17 +255,13 @@ RUN set -eux; \
 
 
 RUN apt update && apt upgrade -y && apt install -y lsb-release ca-certificates apt-transport-https software-properties-common \
-    &&  apt install -y wget curl cron git unzip gnupg2 && apt install -y nginx
-
+    &&  apt install -y wget curl cron git unzip gnupg2 build-essential && apt install -y nginx
 RUN apt -y full-upgrade && apt -y autoremove && ln -s /var/log/nginx/ `2>&1 nginx -V | grep -oP "(?<=--prefix=)\S+"`/logs
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY enabled.conf /etc/nginx/conf.d/enabled.conf
+RUN wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add -
+
+RUN apt -y full-upgrade && apt -y autoremove
 WORKDIR /
 STOPSIGNAL SIGQUIT
-COPY docker-entrypoint.sh /
 
-EXPOSE 9000 8080
-
-# CMD ["php-fpm"]
-CMD ["nginx", "-g", "daemon off;"]
-ENTRYPOINT ["/docker-entrypoint.sh"]
+EXPOSE 9000
+CMD ["php-fpm"]
