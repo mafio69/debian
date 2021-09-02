@@ -3,6 +3,7 @@
 #
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
+
 FROM debian:buster-slim
 
 # prevent Debian's PHP packages from being installed
@@ -42,10 +43,10 @@ ENV PHP_INI_DIR /usr/local/etc/php
 RUN set -eux; \
 	mkdir -p "$PHP_INI_DIR/conf.d"; \
 # allow running as an arbitrary user (https://github.com/docker-library/php/issues/743)
-	[ ! -d /main/public ]; \
-	mkdir -p /main/public; \
-	chown www-data:www-data main/public; \
-	chmod 777 /main/public
+	[ ! -d /var/www/html ]; \
+	mkdir -p /var/www/html; \
+	chown www-data:www-data /var/www/html; \
+	chmod 777 /var/www/html
 
 ENV PHP_EXTRA_CONFIGURE_ARGS --enable-fpm --with-fpm-user=www-data --with-fpm-group=www-data --disable-cgi
 
@@ -61,9 +62,9 @@ ENV PHP_LDFLAGS="-Wl,-O1 -pie"
 
 ENV GPG_KEYS 1729F83938DA44E27BA0F4D3DBDB397470D12172 BFDDD28642824F8118EF77909B67A5C12229118F
 
-ENV PHP_VERSION 8.0.8
-ENV PHP_URL="https://www.php.net/distributions/php-8.0.8.tar.xz" PHP_ASC_URL="https://www.php.net/distributions/php-8.0.8.tar.xz.asc"
-ENV PHP_SHA256="dc1668d324232dec1d05175ec752dade92d29bb3004275118bc3f7fc7cbfbb1c"
+ENV PHP_VERSION 8.0.10
+ENV PHP_URL="https://www.php.net/distributions/php-8.0.10.tar.xz" PHP_ASC_URL="https://www.php.net/distributions/php-8.0.10.tar.xz.asc"
+ENV PHP_SHA256="66dc4d1bc86d9c1bc255b51b79d337ed1a7a035cf71230daabbf9a4ca35795eb"
 
 RUN set -eux; \
 	\
@@ -103,18 +104,17 @@ RUN set -eux; \
 	savedAptMark="$(apt-mark showmanual)"; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
+		${PHP_EXTRA_BUILD_DEPS:-} \
 		libargon2-dev \
 		libcurl4-openssl-dev \
-		libedit-dev \
 		libonig-dev \
+		libreadline-dev \
 		libsodium-dev \
 		libsqlite3-dev \
 		libssl-dev \
 		libxml2-dev \
 		zlib1g-dev \
-		${PHP_EXTRA_BUILD_DEPS:-} \
 	; \
-	rm -rf /var/lib/apt/lists/*; \
 	\
 	export \
 		CFLAGS="$PHP_CFLAGS" \
@@ -149,7 +149,7 @@ RUN set -eux; \
 		--enable-mbstring \
 # --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
 		--enable-mysqlnd \
-# https://wiki.php.net/rfc/argon2_password_hash (7.2+)
+# https://wiki.php.net/rfc/argon2_password_hash
 		--with-password-argon2 \
 # https://wiki.php.net/rfc/libsodium
 		--with-sodium=shared \
@@ -158,15 +158,15 @@ RUN set -eux; \
 		--with-sqlite3=/usr \
 		\
 		--with-curl \
-		--with-libedit \
 		--with-openssl \
+		--with-readline \
 		--with-zlib \
 		\
 # in PHP 7.4+, the pecl/pear installers are officially deprecated (requiring an explicit "--with-pear")
 		--with-pear \
 		\
 # bundled pcre does not support JIT on s390x
-# https://manpages.debian.org/stretch/libpcre3-dev/pcrejit.3.en.html#AVAILABILITY_OF_JIT_SUPPORT
+# https://manpages.debian.org/bullseye/libpcre3-dev/pcrejit.3.en.html#AVAILABILITY_OF_JIT_SUPPORT
 		$(test "$gnuArch" = 's390x-linux-gnu' && echo '--without-pcre-jit') \
 		--with-libdir="lib/$debMultiarch" \
 		\
@@ -175,7 +175,7 @@ RUN set -eux; \
 	make -j "$(nproc)"; \
 	find -type f -name '*.a' -delete; \
 	make install; \
-	find /usr/local/bin /usr/local/sbin -type f -executable -exec strip --strip-all '{}' + || true; \
+	find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; \
 	make clean; \
 	\
 # https://github.com/docker-library/php/issues/692 (copy default example "php.ini" files somewhere easily discoverable)
@@ -196,6 +196,7 @@ RUN set -eux; \
 		| xargs -r apt-mark manual \
 	; \
 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+	rm -rf /var/lib/apt/lists/*; \
 	\
 # update pecl channel definitions https://github.com/docker-library/php/issues/443
 	pecl update-channels; \
@@ -210,7 +211,7 @@ COPY docker-php-ext-* docker-php-entrypoint /usr/local/bin/
 RUN docker-php-ext-enable sodium
 
 ENTRYPOINT ["docker-php-entrypoint"]
-WORKDIR /main/public
+WORKDIR /var/www/html
 
 RUN set -eux; \
 	cd /usr/local/etc; \
@@ -252,14 +253,28 @@ RUN set -eux; \
 
 # Override stop signal to stop process gracefully
 # https://github.com/php/php-src/blob/17baa87faddc2550def3ae7314236826bc1b1398/sapi/fpm/php-fpm.8.in#L163
+# Override stop signal to stop process gracefully
+# https://github.com/php/php-src/blob/17baa87faddc2550def3ae7314236826bc1b1398/sapi/fpm/php-fpm.8.in#L163
 
-
+RUN apt update && apt install -y apt-utils
 RUN apt update && apt upgrade -y && apt install -y lsb-release ca-certificates apt-transport-https software-properties-common \
-    &&  apt install -y wget curl cron git unzip gnupg2 build-essential && apt install -y nginx
+    && apt install -y wget curl cron git unzip gnupg2 build-essential && apt install -y nginx \
+    && apt install -y libicu-dev
 RUN apt -y full-upgrade && apt -y autoremove && ln -s /var/log/nginx/ `2>&1 nginx -V | grep -oP "(?<=--prefix=)\S+"`/logs
 RUN wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add -
-
 RUN apt -y full-upgrade && apt -y autoremove
+
+RUN docker-php-ext-install intl && docker-php-ext-enable intl
+RUN pecl install xdebug && pecl install -o -f redis
+
+RUN apt-get update \
+    && apt-get install g++ \
+    && docker-php-ext-install pdo_mysql \
+    &&  rm -rf /tmp/pear \
+    &&  docker-php-ext-enable redis \
+    &&  docker-php-ext-enable pdo_mysql \
+    &&  docker-php-ext-enable xdebug
+
 WORKDIR /
 STOPSIGNAL SIGQUIT
 
