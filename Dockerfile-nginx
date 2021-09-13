@@ -1,0 +1,23 @@
+# nginx/Dockerfile
+FROM nginx:alpine
+
+RUN  mkdir -p /etc/nginx/logs && touch /etc/nginx/logs/error.log
+RUN apk add coreutils
+COPY config/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY config/nginx/enabled.conf /etc/nginx/sites-enabled/enabled.conf
+COPY config/nginx/fastcgi.conf /etc/nginx/fastcgi.conf
+RUN apk --update add supervisor
+ENV GROUP_ID=1000 \
+    USER_ID=1000
+ENV USER=docker
+RUN addgroup "docker"
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --ingroup "$USER" \
+    --no-create-home \
+    --uid "$USER_ID" \
+    "$USER"
+
+
+CMD ["nginx", "-g", "daemon off;"]

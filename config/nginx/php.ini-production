@@ -83,7 +83,7 @@
 ; development version only in development environments, as errors shown to
 ; application users can inadvertently leak otherwise secure information.
 
-; This is the php.ini-development INI file.
+; This is the php.ini-production INI file.
 
 ;;;;;;;;;;;;;;;;;;;
 ; Quick Reference ;
@@ -376,7 +376,7 @@ zend.enable_gc = On
 ; Default Value: Off
 ; Development Value: Off
 ; Production Value: On
-zend.exception_ignore_args = Off
+zend.exception_ignore_args = On
 
 ; Allows setting the maximum string length in an argument of a stringified stack trace
 ; to a value between 0 and 1000000.
@@ -384,7 +384,9 @@ zend.exception_ignore_args = Off
 ; Default Value: 15
 ; Development Value: 15
 ; Production Value: 0
-zend.exception_string_param_max_len = 15
+; In production, it is recommended to set this to 0 to reduce the output
+; of sensitive information in stack traces.
+zend.exception_string_param_max_len = 0
 
 ;;;;;;;;;;;;;;;;;
 ; Miscellaneous ;
@@ -481,7 +483,7 @@ memory_limit = 128M
 ; Development Value: E_ALL
 ; Production Value: E_ALL & ~E_DEPRECATED & ~E_STRICT
 ; http://php.net/error-reporting
-error_reporting = E_ALL
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
 
 ; This directive controls whether or not and where PHP will output errors,
 ; notices and warnings too. Error output is very useful during development, but
@@ -498,7 +500,7 @@ error_reporting = E_ALL
 ; Development Value: On
 ; Production Value: Off
 ; http://php.net/display-errors
-display_errors = On
+display_errors = Off
 
 ; The display of errors which occur during PHP's startup sequence are handled
 ; separately from display_errors. We strongly recommend you set this to 'off'
@@ -507,7 +509,7 @@ display_errors = On
 ; Development Value: On
 ; Production Value: Off
 ; http://php.net/display-startup-errors
-display_startup_errors = On
+display_startup_errors = Off
 
 ; Besides displaying errors, PHP can also log errors to locations such as a
 ; server-specific log, STDERR, or a location specified by the error_log
@@ -1060,7 +1062,7 @@ cli_server.color = On
 [Pdo_mysql]
 ; Default socket name for local MySQL connects.  If empty, uses the built-in
 ; MySQL defaults.
-pdo_mysql.default_socket=
+pdo_mysql.default_socket=pdo_mysql.default_socket
 
 [Phar]
 ; http://php.net/phar.readonly
@@ -1197,7 +1199,7 @@ mysqlnd.collect_statistics = On
 
 ; Enable / Disable collection of memory usage statistics by mysqlnd which can be
 ; used to tune and monitor MySQL operations.
-mysqlnd.collect_memory_statistics = On
+mysqlnd.collect_memory_statistics = Off
 
 ; Records communication from all extensions using mysqlnd to the specified log
 ; file.
@@ -1570,7 +1572,7 @@ session.sid_bits_per_character = 5
 ; Development Value: 1
 ; Production Value: -1
 ; http://php.net/zend.assertions
-zend.assertions = 1
+zend.assertions = -1
 
 ; Assert(expr); active by default.
 ; http://php.net/assert.active
@@ -1758,23 +1760,23 @@ ldap.max_links = -1
 
 [opcache]
 ; Determines if Zend OPCache is enabled
-opcache.enable=1
+;opcache.enable=1
 
 ; Determines if Zend OPCache is enabled for the CLI version of PHP
-opcache.enable_cli=0
+;opcache.enable_cli=0
 
 ; The OPcache shared memory storage size.
-opcache.memory_consumption=128
+;opcache.memory_consumption=128
 
 ; The amount of memory for interned strings in Mbytes.
-opcache.interned_strings_buffer=8
+;opcache.interned_strings_buffer=8
 
 ; The maximum number of keys (scripts) in the OPcache hash table.
 ; Only numbers between 200 and 1000000 are allowed.
-opcache.max_accelerated_files=10000
+;opcache.max_accelerated_files=10000
 
 ; The maximum percentage of "wasted" memory until a restart is scheduled.
-opcache.max_wasted_percentage=5
+;opcache.max_wasted_percentage=5
 
 ; When this directive is enabled, the OPcache appends the current working
 ; directory to the script key, thus eliminating possible collisions between
@@ -1880,7 +1882,7 @@ opcache.max_wasted_percentage=5
 
 ; Enables or disables copying of PHP code (text segment) into HUGE PAGES.
 ; This should improve performance, but requires appropriate OS configuration.
-;opcache.huge_code_pages=0
+;opcache.huge_code_pages=1
 
 ; Validate cached file permissions.
 ;opcache.validate_permission=0
@@ -1942,12 +1944,3 @@ opcache.max_wasted_percentage=5
 
 ; List of headers files to preload, wildcard patterns allowed.
 ;ffi.preload=
-zend_extension = xdebug.so
-
-[xdebug]
-xdebug.mode=off
-xdebug.client_host=localhost
-xdebug.start_with_request=yes
-
-[common]
-memory_limit=768M
